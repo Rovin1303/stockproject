@@ -314,6 +314,7 @@ function PortfolioDetail() {
           <div className="app-name">Check.Stock</div>
           <button className="nav-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
           <button className="nav-link" onClick={() => navigate("/metals")}>Gold-Silver</button>
+          <button className="nav-link" onClick={() => navigate("/timeseries")}>Time Series</button>
         </div>
         <div className="nav-right">
           <div className="admin-pill">Admin: {staffName}</div>

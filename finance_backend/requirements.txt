@@ -1,0 +1,8 @@
+Django==6.0.2
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+numpy==2.4.2
+pandas==3.0.1
+scikit-learn==1.7.2
+yfinance==0.2.66
+statsmodels==0.14.5

@@ -101,6 +101,7 @@ function StockDetail() {
             <div className="stock-app-name">Check.Stock</div>
             <button className="stock-nav-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
             <button className="stock-nav-link" onClick={() => navigate("/metals")}>Gold-Silver</button>
+            <button className="stock-nav-link" onClick={() => navigate("/timeseries")}>Time Series</button>
           </div>
           <div className="stock-nav-right">
             <div className="stock-admin-pill">Admin: {staffName}</div>

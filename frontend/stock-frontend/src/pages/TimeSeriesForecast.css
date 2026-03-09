@@ -1,0 +1,195 @@
+.ts-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(30, 64, 175, 0.14), transparent 40%),
+    radial-gradient(circle at 85% 10%, rgba(5, 150, 105, 0.14), transparent 40%),
+    #f8fafc;
+  padding: 24px 14px;
+}
+
+.ts-shell {
+  max-width: 1140px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.ts-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ts-nav-left,
+.ts-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ts-app-name {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ts-nav-link {
+  border: none;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #e8edff;
+  color: #1e40af;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ts-nav-link.active {
+  background: #111827;
+  color: #fff;
+}
+
+.ts-admin-pill {
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #dbe3ff;
+  border-radius: 999px;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ts-logout-btn {
+  border: none;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ts-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.ts-card h1,
+.ts-card h3,
+.ts-card p {
+  margin-top: 0;
+}
+
+.ts-controls-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.ts-controls-grid label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.ts-controls-grid select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.ts-button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ts-type-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.ts-type-btn.active {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.ts-type-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ts-error {
+  margin-top: 12px;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.ts-state {
+  margin-top: 12px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.ts-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.ts-info-grid div {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.ts-info-grid span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ts-info-grid strong {
+  color: #111827;
+}
+
+.ts-card canvas {
+  max-height: 380px;
+}
+
+.ts-chart-box {
+  height: 380px;
+}
+
+@media (max-width: 760px) {
+  .ts-navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .ts-nav-left,
+  .ts-nav-right {
+    flex-wrap: wrap;
+  }
+
+  .ts-button-row {
+    flex-wrap: wrap;
+  }
+}

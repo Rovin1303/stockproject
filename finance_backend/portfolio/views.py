@@ -4,9 +4,10 @@ from rest_framework import status
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from .models import Portfolio, Stock
+from .models import Portfolio, Stock, TimeSeriesForecast
 from .serializers import PortfolioSerializer, StockSerializer
 from eda.services.stock_service import get_stock_analysis
+from eda.services.arima_timeseries import predict_stock_timeseries
 from eda.services.regression_service import (
     predict_next_day_logistic_window,
     predict_next_day_price,
@@ -440,3 +441,94 @@ class PortfolioComparisonView(APIView):
             "stock_2": _stock_comparison_payload(stock2),
         }
         return Response(result, status=200)
+
+
+class StockTimeSeriesForecastView(APIView):
+    def get(self, request):
+        stock_id = request.query_params.get("stock_id")
+        forecast_type = (request.query_params.get("forecast_type") or "ts_1").strip().lower()
+
+        if not stock_id:
+            return Response({"error": "stock_id is required"}, status=400)
+
+        if forecast_type not in ("ts_1", "ts_7"):
+            return Response({"error": "forecast_type must be ts_1 or ts_7"}, status=400)
+
+        horizon_days = 1 if forecast_type == "ts_1" else 7
+
+        try:
+            stock = Stock.objects.select_related("portfolio").get(pk=stock_id)
+        except Stock.DoesNotExist:
+            return Response({"error": "Stock not found"}, status=404)
+
+        analysis = get_stock_analysis(stock.ticker)
+        if not analysis:
+            return Response({"error": "Unable to fetch latest stock history"}, status=400)
+
+        _sync_stock_market_fields(stock, analysis)
+
+        try:
+            forecast_payload = predict_stock_timeseries(
+                price_history=analysis.get("price_history") or [],
+                date_history=analysis.get("dates") or [],
+                horizon_days=horizon_days,
+            )
+        except RuntimeError as exc:
+            return Response({"error": str(exc)}, status=400)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=400)
+
+        forecast_obj, _ = TimeSeriesForecast.objects.update_or_create(
+            stock=stock,
+            forecast_type=forecast_type,
+            predicted_for_date=forecast_payload["predicted_for_date"],
+            defaults={
+                "horizon_days": horizon_days,
+                "model_name": forecast_payload["model_name"],
+                "forecast_prices": forecast_payload["forecast_prices"],
+                "history_prices": forecast_payload["history_prices"],
+                "history_dates": forecast_payload["history_dates"],
+                "forecast_dates": forecast_payload["forecast_dates"],
+            },
+        )
+
+        return Response(
+            {
+                "forecast_id": forecast_obj.id,
+                "forecast_type": forecast_type,
+                "horizon_days": horizon_days,
+                "portfolio": {
+                    "id": stock.portfolio.id,
+                    "name": stock.portfolio.name,
+                },
+                "stock": {
+                    "id": stock.id,
+                    "ticker": stock.ticker,
+                    "company_name": analysis.get("company_name") or stock.company_name,
+                    "current_price": analysis.get("current_price") or stock.current_price,
+                    "pe_ratio": analysis.get("pe_ratio"),
+                    "high_52w": analysis.get("high_52w"),
+                    "low_52w": analysis.get("low_52w"),
+                    "market_cap": analysis.get("market_cap"),
+                    "percent_from_low": analysis.get("percent_from_low"),
+                    "percent_from_high": analysis.get("percent_from_high"),
+                },
+                "prediction": {
+                    "model_name": forecast_payload["model_name"],
+                    "model_order": forecast_payload["model_order"],
+                    "predicted_price": forecast_payload["predicted_price"],
+                    "predicted_for_date": forecast_payload["predicted_for_date"],
+                    "forecast_prices": forecast_payload["forecast_prices"],
+                    "forecast_dates": forecast_payload["forecast_dates"],
+                    "confidence_interval_lower": forecast_payload["confidence_interval_lower"],
+                    "confidence_interval_upper": forecast_payload["confidence_interval_upper"],
+                },
+                "graph": {
+                    "history_prices": forecast_payload["history_prices"],
+                    "history_dates": forecast_payload["history_dates"],
+                    "forecast_prices": forecast_payload["forecast_prices"],
+                    "forecast_dates": forecast_payload["forecast_dates"],
+                },
+            },
+            status=200,
+        )
