@@ -44,6 +44,14 @@ STKM/
 
 🔎 Search & Dynamic Data Rendering
 
+📈 Time Series Forecasting (TS 1 Day / TS 7 Days)
+
+🧠 ARIMA Forecast Model for stock prediction
+
+🤖 TensorFlow RNN (LSTM) Forecast Model for stock prediction
+
+🥇 Gold vs Silver Price Comparison Dashboard
+
 **🛠 #Backend**
 
 Django 6.0.2
@@ -57,6 +65,12 @@ SQLite Database
 yfinance (Stock Data Fetching)
 
 Pandas & Matplotlib (EDA)
+
+statsmodels (ARIMA)
+
+scikit-learn (preprocessing and analytics)
+
+TensorFlow (RNN forecasting)
 
 **🎨 Frontend**
 
@@ -82,6 +96,12 @@ yfinance
 
 requests
 
+statsmodels
+
+scikit-learn
+
+tensorflow
+
 **▶️ How to Run**
 **Backend**
 
@@ -93,7 +113,7 @@ python manage.py runserver
 
 cd frontend/stock-frontend
 npm install
-npm start
+npm run dev
 
 **📌Author**
 

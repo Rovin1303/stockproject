@@ -8,6 +8,7 @@ from .models import Portfolio, Stock, TimeSeriesForecast
 from .serializers import PortfolioSerializer, StockSerializer
 from eda.services.stock_service import get_stock_analysis
 from eda.services.arima_timeseries import predict_stock_timeseries
+from eda.services.rnn_timeseries import predict_stock_timeseries_rnn
 from eda.services.regression_service import (
     predict_next_day_logistic_window,
     predict_next_day_price,
@@ -447,12 +448,16 @@ class StockTimeSeriesForecastView(APIView):
     def get(self, request):
         stock_id = request.query_params.get("stock_id")
         forecast_type = (request.query_params.get("forecast_type") or "ts_1").strip().lower()
+        model_type = (request.query_params.get("model_type") or "arima").strip().lower()
 
         if not stock_id:
             return Response({"error": "stock_id is required"}, status=400)
 
         if forecast_type not in ("ts_1", "ts_7"):
             return Response({"error": "forecast_type must be ts_1 or ts_7"}, status=400)
+
+        if model_type not in ("arima", "rnn"):
+            return Response({"error": "model_type must be arima or rnn"}, status=400)
 
         horizon_days = 1 if forecast_type == "ts_1" else 7
 
@@ -468,11 +473,22 @@ class StockTimeSeriesForecastView(APIView):
         _sync_stock_market_fields(stock, analysis)
 
         try:
-            forecast_payload = predict_stock_timeseries(
-                price_history=analysis.get("price_history") or [],
-                date_history=analysis.get("dates") or [],
-                horizon_days=horizon_days,
-            )
+            if model_type == "rnn":
+                forecast_payload = predict_stock_timeseries_rnn(
+                    price_history=analysis.get("price_history") or [],
+                    date_history=analysis.get("dates") or [],
+                    horizon_days=horizon_days,
+                    open_history=analysis.get("open_history") or [],
+                    high_history=analysis.get("high_history") or [],
+                    low_history=analysis.get("low_history") or [],
+                    volume_history=analysis.get("volume_history") or [],
+                )
+            else:
+                forecast_payload = predict_stock_timeseries(
+                    price_history=analysis.get("price_history") or [],
+                    date_history=analysis.get("dates") or [],
+                    horizon_days=horizon_days,
+                )
         except RuntimeError as exc:
             return Response({"error": str(exc)}, status=400)
         except ValueError as exc:
@@ -496,6 +512,7 @@ class StockTimeSeriesForecastView(APIView):
             {
                 "forecast_id": forecast_obj.id,
                 "forecast_type": forecast_type,
+                "model_type": model_type,
                 "horizon_days": horizon_days,
                 "portfolio": {
                     "id": stock.portfolio.id,
@@ -526,6 +543,8 @@ class StockTimeSeriesForecastView(APIView):
                 "graph": {
                     "history_prices": forecast_payload["history_prices"],
                     "history_dates": forecast_payload["history_dates"],
+                    "fitted_prices": forecast_payload.get("fitted_prices") or [],
+                    "fitted_dates": forecast_payload.get("fitted_dates") or [],
                     "forecast_prices": forecast_payload["forecast_prices"],
                     "forecast_dates": forecast_payload["forecast_dates"],
                 },

@@ -6,3 +6,6 @@ pandas==3.0.1
 scikit-learn==1.7.2
 yfinance==0.2.66
 statsmodels==0.14.5
+# Required for LSTM-based RNN forecasting in time series module.
+# Install a version compatible with your Python runtime.
+tensorflow

@@ -113,6 +113,22 @@
   margin-top: 14px;
 }
 
+.ts-button-row.compact {
+  margin-top: 0;
+}
+
+.ts-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ts-chart-header h3 {
+  margin: 0;
+}
+
 .ts-type-btn {
   border: none;
   border-radius: 10px;
@@ -191,5 +207,10 @@
 
   .ts-button-row {
     flex-wrap: wrap;
+  }
+
+  .ts-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
