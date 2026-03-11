@@ -5,13 +5,29 @@ from .services.stock_service import get_stock_analysis, search_stocks
 from .services.metal_correlation_service import get_gold_silver_correlation
 from .serializers import StockAnalysisSerializer
 from portfolio.models import Stock
+from staff.models import Staff
+
+
+def _extract_staff_id(request):
+    raw = request.query_params.get("staff_id")
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
 
 class StockDetailAPIView(APIView):
 
     def get(self, request, stock_id):
+        staff_id = _extract_staff_id(request)
+        if not staff_id:
+            return Response({"error": "Valid staff_id is required"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        staff = Staff.objects.filter(id=staff_id).first()
+        if not staff:
+            return Response({"error": "Invalid staff_id"}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            stock_obj = Stock.objects.get(id=stock_id)
+            stock_obj = Stock.objects.get(id=stock_id, portfolio__created_by=staff)
         except Stock.DoesNotExist:
             return Response(
                 {"error": "Stock not found"},

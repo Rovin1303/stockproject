@@ -6,6 +6,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from .models import Portfolio, Stock, TimeSeriesForecast
 from .serializers import PortfolioSerializer, StockSerializer
+from staff.models import Staff
 from eda.services.stock_service import get_stock_analysis
 from eda.services.arima_timeseries import predict_stock_timeseries
 from eda.services.rnn_timeseries import predict_stock_timeseries_rnn
@@ -104,7 +105,7 @@ def _cluster_by_multi_returns(items):
 
     X = np.array(
         [
-            [item["vol_21"], item["max_drawdown_126"], item.get("discount_pct", 0.0)]
+            [item["vol_21"], item["max_drawdown_126"]]
             for item in items
         ],
         dtype=float,
@@ -115,7 +116,7 @@ def _cluster_by_multi_returns(items):
         model = KMeans(n_clusters=3, random_state=42, n_init=10)
         labels = model.fit_predict(X_scaled)
         centers = model.cluster_centers_
-        # Higher vol/drawdown/discount contributes to higher risk grouping.
+        # Higher vol/drawdown means higher risk.
         center_scores = centers.mean(axis=1)
         order = np.argsort(center_scores)
         cluster_name_map = {
@@ -171,20 +172,48 @@ def _stock_comparison_payload(stock):
     }
 
 
+def _extract_staff_id(request):
+    raw = (
+        request.query_params.get("staff_id")
+        or request.headers.get("X-Staff-Id")
+        or request.data.get("staff_id")
+        or request.data.get("created_by")
+    )
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _get_request_staff(request):
+    staff_id = _extract_staff_id(request)
+    if not staff_id:
+        return None
+    return Staff.objects.filter(id=staff_id).first()
+
+
 # ===============================
 # PORTFOLIO LIST + CREATE
 # ===============================
 class PortfolioView(APIView):
 
     def get(self, request):
-        portfolios = Portfolio.objects.all()
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolios = Portfolio.objects.filter(created_by=staff).order_by("-id")
         serializer = PortfolioSerializer(portfolios, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
         serializer = PortfolioSerializer(data=request.data)
         if serializer.is_valid():
-            portfolio = serializer.save()
+            portfolio = serializer.save(created_by=staff)
             return Response(PortfolioSerializer(portfolio).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -194,14 +223,15 @@ class PortfolioView(APIView):
 # ===============================
 class PortfolioDetailView(APIView):
 
-    def get_object(self, pk):
-        try:
-            return Portfolio.objects.get(pk=pk)
-        except Portfolio.DoesNotExist:
-            return None
+    def get_object(self, pk, staff):
+        return Portfolio.objects.filter(pk=pk, created_by=staff).first()
 
     def get(self, request, pk):
-        portfolio = self.get_object(pk)
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = self.get_object(pk, staff)
         if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
@@ -214,18 +244,26 @@ class PortfolioDetailView(APIView):
         return Response(serializer.data)
 
     def put(self, request, pk):
-        portfolio = self.get_object(pk)
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = self.get_object(pk, staff)
         if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
         serializer = PortfolioSerializer(portfolio, data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(created_by=staff)
             return Response({"message": "Portfolio updated successfully"})
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        portfolio = self.get_object(pk)
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = self.get_object(pk, staff)
         if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
@@ -239,11 +277,23 @@ class PortfolioDetailView(APIView):
 class StockView(APIView):
 
     def get(self, request):
-        stocks = Stock.objects.all()
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        stocks = Stock.objects.filter(portfolio__created_by=staff).select_related("portfolio")
         serializer = StockSerializer(stocks, many=True)
         return Response(serializer.data)
 
     def post(self, request):
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio_id = request.data.get("portfolio")
+        if not Portfolio.objects.filter(id=portfolio_id, created_by=staff).exists():
+            return Response({"error": "Invalid portfolio for this user"}, status=403)
+
         serializer = StockSerializer(data=request.data)
         if serializer.is_valid():
             stock = serializer.save()
@@ -256,14 +306,15 @@ class StockView(APIView):
 # ===============================
 class StockDetailView(APIView):
 
-    def get_object(self, pk):
-        try:
-            return Stock.objects.get(pk=pk)
-        except Stock.DoesNotExist:
-            return None
+    def get_object(self, pk, staff):
+        return Stock.objects.filter(pk=pk, portfolio__created_by=staff).first()
 
     def get(self, request, pk):
-        stock = self.get_object(pk)
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        stock = self.get_object(pk, staff)
         if not stock:
             return Response({"error": "Stock not found"}, status=404)
 
@@ -271,7 +322,11 @@ class StockDetailView(APIView):
         return Response(serializer.data)
 
     def put(self, request, pk):
-        stock = self.get_object(pk)
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        stock = self.get_object(pk, staff)
         if not stock:
             return Response({"error": "Stock not found"}, status=404)
 
@@ -282,7 +337,11 @@ class StockDetailView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        stock = self.get_object(pk)
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        stock = self.get_object(pk, staff)
         if not stock:
             return Response({"error": "Stock not found"}, status=404)
 
@@ -292,9 +351,12 @@ class StockDetailView(APIView):
 
 class PortfolioPredictionView(APIView):
     def get(self, request, pk):
-        try:
-            portfolio = Portfolio.objects.get(pk=pk)
-        except Portfolio.DoesNotExist:
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = Portfolio.objects.filter(pk=pk, created_by=staff).first()
+        if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
         next_date = tomorrow_date_str()
@@ -319,9 +381,12 @@ class PortfolioPredictionView(APIView):
 
 class PortfolioLogisticView(APIView):
     def get(self, request, pk):
-        try:
-            portfolio = Portfolio.objects.get(pk=pk)
-        except Portfolio.DoesNotExist:
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = Portfolio.objects.filter(pk=pk, created_by=staff).first()
+        if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
         next_date = tomorrow_date_str()
@@ -353,9 +418,12 @@ class PortfolioLogisticView(APIView):
 
 class PortfolioClusterView(APIView):
     def get(self, request, pk):
-        try:
-            portfolio = Portfolio.objects.get(pk=pk)
-        except Portfolio.DoesNotExist:
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = Portfolio.objects.filter(pk=pk, created_by=staff).first()
+        if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
         rows = []
@@ -371,21 +439,6 @@ class PortfolioClusterView(APIView):
             if vol_21 is None or max_dd_126 is None:
                 continue
 
-            analysis_high = analysis.get("high_52w") if analysis else None
-            analysis_current = analysis.get("current_price") if analysis else None
-            high_52w = analysis_high if analysis_high not in (None, 0) else stock.high_52w
-            current_price = analysis_current if analysis_current not in (None, 0) else stock.current_price
-
-            # Fallback to available history so discount can still be derived.
-            if not high_52w and prices:
-                high_52w = max(prices)
-            if not current_price and prices:
-                current_price = prices[-1]
-
-            discount_pct = None
-            if high_52w and current_price is not None:
-                discount_pct = ((float(high_52w) - float(current_price)) / float(high_52w)) * 100
-
             rows.append(
                 {
                     "stock_id": stock.id,
@@ -393,7 +446,6 @@ class PortfolioClusterView(APIView):
                     "company_name": stock.company_name,
                     "vol_21": round(float(vol_21), 2),
                     "max_drawdown_126": round(float(max_dd_126), 2),
-                    "discount_pct": round(float(discount_pct), 2) if discount_pct is not None else None,
                     "cluster": None,
                 }
             )
@@ -418,9 +470,12 @@ class PortfolioClusterView(APIView):
 
 class PortfolioComparisonView(APIView):
     def get(self, request, pk):
-        try:
-            portfolio = Portfolio.objects.get(pk=pk)
-        except Portfolio.DoesNotExist:
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
+        portfolio = Portfolio.objects.filter(pk=pk, created_by=staff).first()
+        if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
         stock1_id = request.query_params.get("stock1_id")
@@ -446,6 +501,10 @@ class PortfolioComparisonView(APIView):
 
 class StockTimeSeriesForecastView(APIView):
     def get(self, request):
+        staff = _get_request_staff(request)
+        if not staff:
+            return Response({"error": "Valid staff_id is required"}, status=401)
+
         stock_id = request.query_params.get("stock_id")
         forecast_type = (request.query_params.get("forecast_type") or "ts_1").strip().lower()
         model_type = (request.query_params.get("model_type") or "arima").strip().lower()
@@ -462,7 +521,10 @@ class StockTimeSeriesForecastView(APIView):
         horizon_days = 1 if forecast_type == "ts_1" else 7
 
         try:
-            stock = Stock.objects.select_related("portfolio").get(pk=stock_id)
+            stock = Stock.objects.select_related("portfolio").get(
+                pk=stock_id,
+                portfolio__created_by=staff,
+            )
         except Stock.DoesNotExist:
             return Response({"error": "Stock not found"}, status=404)
 

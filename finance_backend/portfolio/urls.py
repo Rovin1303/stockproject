@@ -6,9 +6,9 @@ from .views import (
     PortfolioComparisonView,
     PortfolioLogisticView,
     PortfolioPredictionView,
-    StockTimeSeriesForecastView,
     StockView,
-    StockDetailView
+    StockDetailView,
+    StockTimeSeriesForecastView,
 )
 
 urlpatterns = [
@@ -18,8 +18,8 @@ urlpatterns = [
     path('portfolio/<int:pk>/logistic/', PortfolioLogisticView.as_view()),
     path('portfolio/<int:pk>/clusters/', PortfolioClusterView.as_view()),
     path('portfolio/<int:pk>/compare/', PortfolioComparisonView.as_view()),
-    path('timeseries/predict/', StockTimeSeriesForecastView.as_view()),
 
     path('stocks/', StockView.as_view()),
     path('stocks/<int:pk>/', StockDetailView.as_view()),
+    path('timeseries/predict/', StockTimeSeriesForecastView.as_view(), name='stock-timeseries-predict'),
 ]

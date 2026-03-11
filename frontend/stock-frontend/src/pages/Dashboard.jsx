@@ -11,12 +11,23 @@ function Dashboard() {
   const [deletingId, setDeletingId] = useState(null);
   const navigate = useNavigate();
   const staffId = localStorage.getItem("staff_id");
+  const numericStaffId = Number(staffId);
   const staffName = localStorage.getItem("staff_name") || "Admin";
+  const [errorMessage, setErrorMessage] = useState("");
 
   const loadPortfolios = () => {
     api.get("portfolio/")
-      .then((res) => setPortfolios(res.data))
-      .catch((err) => console.log(err));
+      .then((res) => {
+        setPortfolios(res.data);
+        setErrorMessage("");
+      })
+      .catch((err) => {
+        console.log(err);
+        const message = !err?.response
+          ? "Cannot connect to backend server. Ensure Django API is running on port 8000."
+          : (err?.response?.data?.error || "Unable to load portfolios. Please login again.");
+        setErrorMessage(message);
+      });
   };
 
   useEffect(() => {
@@ -24,19 +35,33 @@ function Dashboard() {
       navigate("/login");
       return;
     }
+
+    if (!Number.isFinite(numericStaffId) || numericStaffId <= 0) {
+      localStorage.removeItem("staff_id");
+      localStorage.removeItem("staff_name");
+      navigate("/login");
+      return;
+    }
+
     loadPortfolios();
-  }, [staffId, navigate]);
+  }, [staffId, numericStaffId, navigate]);
 
   const handleCreatePortfolio = async (e) => {
     e.preventDefault();
     if (!name.trim() || !staffId) return;
+    if (!Number.isFinite(numericStaffId) || numericStaffId <= 0) {
+      alert("Session expired. Please login again.");
+      navigate("/login");
+      return;
+    }
 
     setCreating(true);
     try {
+      setErrorMessage("");
       const res = await api.post("portfolio/", {
         name: name.trim(),
         description: description.trim(),
-        created_by: Number(staffId),
+        created_by: numericStaffId,
       });
       setName("");
       setDescription("");
@@ -44,7 +69,15 @@ function Dashboard() {
       navigate(`/portfolio/${res.data.id}`);
     } catch (err) {
       console.log(err);
-      alert("Unable to create portfolio.");
+      const details = err?.response?.data;
+      let message = !err?.response
+        ? "Cannot connect to backend server. Ensure Django API is running on port 8000."
+        : (details?.error || "Unable to create portfolio.");
+      if (details?.created_by?.length) {
+        message = `Unable to create portfolio: ${details.created_by[0]}`;
+      }
+      setErrorMessage(message);
+      alert(message);
     } finally {
       setCreating(false);
     }
@@ -91,6 +124,7 @@ function Dashboard() {
       </div>
 
       <h1 className="dashboard-title">My Portfolios</h1>
+  {errorMessage && <p className="dashboard-error">{errorMessage}</p>}
 
       <form className="portfolio-card create-card" onSubmit={handleCreatePortfolio}>
         <h2>Create Portfolio</h2>

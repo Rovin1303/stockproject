@@ -21,6 +21,7 @@ function TimeSeriesForecast() {
   const [loadingStocks, setLoadingStocks] = useState(false);
   const [loadingForecast, setLoadingForecast] = useState(false);
   const [error, setError] = useState("");
+  const hasPortfolios = portfolios.length > 0;
 
   useEffect(() => {
     if (!localStorage.getItem("staff_id")) {
@@ -31,8 +32,13 @@ function TimeSeriesForecast() {
     setLoadingPortfolios(true);
     api.get("portfolio/")
       .then((res) => {
-        setPortfolios(res.data || []);
-        setError("");
+        const userPortfolios = res.data || [];
+        setPortfolios(userPortfolios);
+        if (!userPortfolios.length) {
+          setError("Create a portfolio first to use time series forecasting.");
+        } else {
+          setError("");
+        }
       })
       .catch(() => {
         setError("Unable to load portfolios.");
@@ -237,7 +243,7 @@ function TimeSeriesForecast() {
               <select
                 value={selectedPortfolioId}
                 onChange={(e) => setSelectedPortfolioId(e.target.value)}
-                disabled={loadingPortfolios}
+                disabled={loadingPortfolios || !hasPortfolios}
               >
                 <option value="">Select Portfolio</option>
                 {portfolios.map((portfolio) => (
@@ -271,14 +277,14 @@ function TimeSeriesForecast() {
           <div className="ts-button-row">
             <button
               className={`ts-type-btn ${selectedModelType === "arima" ? "active" : ""}`}
-              disabled={!selectedStockId || loadingForecast}
+              disabled={!selectedStockId || loadingForecast || !hasPortfolios}
               onClick={() => loadForecast(selectedForecastType, "arima")}
             >
               ARIMA
             </button>
             <button
               className={`ts-type-btn ${selectedModelType === "rnn" ? "active" : ""}`}
-              disabled={!selectedStockId || loadingForecast}
+              disabled={!selectedStockId || loadingForecast || !hasPortfolios}
               onClick={() => loadForecast(selectedForecastType, "rnn")}
             >
               RNN
@@ -288,14 +294,14 @@ function TimeSeriesForecast() {
           <div className="ts-button-row">
             <button
               className={`ts-type-btn ${selectedForecastType === "ts_1" ? "active" : ""}`}
-              disabled={!selectedStockId || loadingForecast}
+              disabled={!selectedStockId || loadingForecast || !hasPortfolios}
               onClick={() => loadForecast("ts_1", selectedModelType)}
             >
               TS 1 Day
             </button>
             <button
               className={`ts-type-btn ${selectedForecastType === "ts_7" ? "active" : ""}`}
-              disabled={!selectedStockId || loadingForecast}
+              disabled={!selectedStockId || loadingForecast || !hasPortfolios}
               onClick={() => loadForecast("ts_7", selectedModelType)}
             >
               TS 7 Days
