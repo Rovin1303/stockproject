@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
@@ -192,6 +193,42 @@ def _get_request_staff(request):
     return Staff.objects.filter(id=staff_id).first()
 
 
+def _is_force_refresh(request):
+    raw = str(request.query_params.get("force_refresh", "")).strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def _refresh_portfolio_market_data(portfolio, force_refresh=False):
+    stocks = list(portfolio.stocks.all())
+    if not stocks:
+        return
+
+    # For explicit manual refresh and larger portfolios, fetch market data in parallel
+    # to reduce request time while still persisting latest values in DB.
+    if force_refresh and len(stocks) >= 4:
+        max_workers = min(8, len(stocks))
+        analysis_by_stock_id = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(get_stock_analysis, stock.ticker, force_refresh=True): stock
+                for stock in stocks
+            }
+            for future in as_completed(futures):
+                stock = futures[future]
+                try:
+                    analysis_by_stock_id[stock.id] = future.result()
+                except Exception:
+                    analysis_by_stock_id[stock.id] = None
+
+        for stock in stocks:
+            _sync_stock_market_fields(stock, analysis_by_stock_id.get(stock.id))
+        return
+
+    for stock in stocks:
+        analysis = get_stock_analysis(stock.ticker, force_refresh=force_refresh)
+        _sync_stock_market_fields(stock, analysis)
+
+
 # ===============================
 # PORTFOLIO LIST + CREATE
 # ===============================
@@ -235,10 +272,11 @@ class PortfolioDetailView(APIView):
         if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
-        # Live fetch from yfinance and store latest values in DB on each request.
-        for stock in portfolio.stocks.all():
-            analysis = get_stock_analysis(stock.ticker)
-            _sync_stock_market_fields(stock, analysis)
+        force_refresh = _is_force_refresh(request)
+
+        # Avoid expensive live refresh for normal page load; only refresh on explicit request.
+        if force_refresh:
+            _refresh_portfolio_market_data(portfolio, force_refresh=True)
 
         serializer = PortfolioSerializer(portfolio)
         return Response(serializer.data)
@@ -426,9 +464,11 @@ class PortfolioClusterView(APIView):
         if not portfolio:
             return Response({"error": "Portfolio not found"}, status=404)
 
+        force_refresh = _is_force_refresh(request)
+
         rows = []
         for stock in portfolio.stocks.all():
-            analysis = get_stock_analysis(stock.ticker)
+            analysis = get_stock_analysis(stock.ticker, force_refresh=force_refresh)
             _sync_stock_market_fields(stock, analysis)
             prices = _clean_prices(analysis.get("price_history") if analysis else [])
             if len(prices) < 127:

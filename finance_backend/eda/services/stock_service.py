@@ -1,4 +1,9 @@
 import yfinance as yf
+import time
+
+
+_STOCK_ANALYSIS_CACHE = {}
+_STOCK_ANALYSIS_CACHE_TTL_SECONDS = 120
 
 
 def _resolve_live_price(stock, info, hist):
@@ -45,10 +50,19 @@ def _resolve_pe_ratio(info, current_price):
     return None
 
 
-def get_stock_analysis(ticker):
+def get_stock_analysis(ticker, force_refresh=False):
+
+    key = (ticker or "").strip().upper()
+    if not key:
+        return None
+
+    now = time.time()
+    cached_entry = _STOCK_ANALYSIS_CACHE.get(key)
+    if (not force_refresh) and cached_entry and (now - cached_entry["ts"]) < _STOCK_ANALYSIS_CACHE_TTL_SECONDS:
+        return cached_entry["data"]
 
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(key)
 
         # ===============================
         # 1 YEAR PRICE DATA
@@ -138,8 +152,8 @@ def get_stock_analysis(ticker):
         # RETURN JSON RESPONSE
         # ===============================
 
-        return {
-            "ticker": ticker,
+        result = {
+            "ticker": key,
             "company_name": info.get("longName") or info.get("shortName") or ticker,
             "current_price": round(current_price, 2),
             "high_52w": round(high_52w, 2),
@@ -158,6 +172,12 @@ def get_stock_analysis(ticker):
             "pe_quarters": pe_quarters,
             "opportunity_score": score
         }
+
+        _STOCK_ANALYSIS_CACHE[key] = {
+            "ts": now,
+            "data": result,
+        }
+        return result
 
     except Exception as e:
         print("YFinance Error:", e)

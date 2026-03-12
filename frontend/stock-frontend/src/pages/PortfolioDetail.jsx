@@ -11,6 +11,8 @@ function PortfolioDetail() {
   const staffName = localStorage.getItem("staff_name") || "Admin";
 
   const [portfolio, setPortfolio] = useState(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [portfolioError, setPortfolioError] = useState("");
   const [stocks, setStocks] = useState([]);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -20,14 +22,38 @@ function PortfolioDetail() {
   const [logisticRows, setLogisticRows] = useState([]);
   const [clusterRows, setClusterRows] = useState([]);
   const [clusterCounts, setClusterCounts] = useState({ "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
+  const [clusterLoading, setClusterLoading] = useState(false);
+  const [clusterError, setClusterError] = useState("");
   const [activeGraph, setActiveGraph] = useState("");
   const [refreshingPrices, setRefreshingPrices] = useState(false);
 
-  const loadPortfolio = useCallback(async () => {
-    const res = await api.get(`portfolio/${portfolioId}/`);
-    setPortfolio(res.data);
-    setStocks(res.data.stocks || []);
-    return res.data;
+  const loadPortfolio = useCallback(async (options = {}) => {
+    const {
+      forceRefresh = false,
+      showLoadingScreen = true,
+      timeoutMs,
+    } = options;
+    if (showLoadingScreen) {
+      setPortfolioLoading(true);
+      setPortfolioError("");
+    }
+    try {
+      const res = await api.get(`portfolio/${portfolioId}/`, {
+        params: forceRefresh ? { force_refresh: 1 } : undefined,
+        timeout: timeoutMs,
+      });
+      setPortfolio(res.data);
+      setStocks(res.data.stocks || []);
+      return res.data;
+    } catch (err) {
+      const message = err?.response?.data?.error || "Unable to load portfolio data right now.";
+      setPortfolioError(message);
+      throw err;
+    } finally {
+      if (showLoadingScreen) {
+        setPortfolioLoading(false);
+      }
+    }
   }, [portfolioId]);
 
   useEffect(() => {
@@ -91,17 +117,34 @@ function PortfolioDetail() {
     navigate("/login");
   };
 
-  const loadClusters = useCallback(async () => {
-    const res = await api.get(`portfolio/${portfolioId}/clusters/`);
-    setClusterRows(res.data?.stocks || []);
-    setClusterCounts(res.data?.cluster_counts || { "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
+  const loadClusters = useCallback(async (options = {}) => {
+    const { forceRefresh = false } = options;
+    setClusterLoading(true);
+    setClusterError("");
+    try {
+      const res = await api.get(`portfolio/${portfolioId}/clusters/`, {
+        params: forceRefresh ? { force_refresh: 1 } : undefined,
+      });
+      setClusterRows(res.data?.stocks || []);
+      setClusterCounts(res.data?.cluster_counts || { "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
+    } catch (err) {
+      const message = err?.response?.data?.error || "Unable to load clustering right now.";
+      setClusterError(message);
+      setClusterRows([]);
+      setClusterCounts({ "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
+    } finally {
+      setClusterLoading(false);
+    }
   }, [portfolioId]);
 
   const handleRefreshPrices = async () => {
     setRefreshingPrices(true);
     try {
-      await loadPortfolio();
-      await loadClusters();
+      await loadPortfolio({
+        forceRefresh: true,
+        showLoadingScreen: false,
+        timeoutMs: 90000,
+      });
     } catch (err) {
       console.log(err);
       alert("Unable to refresh stock prices right now.");
@@ -141,32 +184,29 @@ function PortfolioDetail() {
   }, [stocks, portfolioId]);
 
   useEffect(() => {
+    const isClusterViewOpen = activeGraph === "kmeans" || activeGraph === "kmeans_table";
+    if (!isClusterViewOpen) {
+      return;
+    }
+
     if (!stocks.length) {
       setClusterRows([]);
       setClusterCounts({ "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
+      setClusterError("");
       return;
     }
 
     let active = true;
     const loadClustersForEffect = async () => {
-      try {
-        const res = await api.get(`portfolio/${portfolioId}/clusters/`);
-        if (!active) return;
-        setClusterRows(res.data?.stocks || []);
-        setClusterCounts(res.data?.cluster_counts || { "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
-      } catch (err) {
-        console.log(err);
-        if (!active) return;
-        setClusterRows([]);
-        setClusterCounts({ "High Risk": 0, "Medium Risk": 0, "Low Risk": 0 });
-      }
+      await loadClusters();
+      if (!active) return;
     };
 
     loadClustersForEffect();
     return () => {
       active = false;
     };
-  }, [stocks, portfolioId]);
+  }, [stocks, activeGraph, loadClusters]);
 
   useEffect(() => {
     if (!stocks.length) {
@@ -305,7 +345,8 @@ function PortfolioDetail() {
     return String(a.ticker || "").localeCompare(String(b.ticker || ""));
   });
 
-  if (!portfolio) return <div>Loading...</div>;
+  if (portfolioLoading) return <div>Loading...</div>;
+  if (!portfolio) return <div>{portfolioError || "Portfolio not found."}</div>;
 
   return (
     <div className="portfolio-container">
@@ -392,7 +433,11 @@ function PortfolioDetail() {
       {activeGraph === "kmeans" && (
         <div className="chart-card">
           <h3>Stock Risk Clustering (Vol21 / MaxDrawdown126)</h3>
-          {clusterRows.length === 0 ? (
+          {clusterLoading ? (
+            <p className="chart-note">Loading clustering data...</p>
+          ) : clusterError ? (
+            <p className="chart-note">{clusterError}</p>
+          ) : clusterRows.length === 0 ? (
             <p className="chart-note">Not enough stock history to build clusters.</p>
           ) : (
             <>
@@ -421,9 +466,14 @@ function PortfolioDetail() {
                 </tr>
               </thead>
               <tbody>
-                {clusterRows.length === 0 && (
+                {!clusterLoading && clusterRows.length === 0 && (
                   <tr>
                     <td colSpan="6" className="empty-row">No clustering data available.</td>
+                  </tr>
+                )}
+                {clusterLoading && (
+                  <tr>
+                    <td colSpan="6" className="empty-row">Loading clustering data...</td>
                   </tr>
                 )}
                 {sortedClusterRows.map((row) => (
