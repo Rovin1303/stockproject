@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Line, Scatter } from "react-chartjs-2";
 import "chart.js/auto";
 import api from "../services/api";
+import AppNavbar from "../components/AppNavbar";
 import "./MetalsCorrelationPage.css";
 
 function MetalsCorrelationPage() {
@@ -118,18 +119,7 @@ function MetalsCorrelationPage() {
   return (
     <div className="metals-page">
       <div className="metals-shell">
-        <div className="metals-navbar">
-        <div className="metals-nav-left">
-          <div className="metals-app-name">Check.Stock</div>
-          <button className="metals-nav-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <button className="metals-nav-link active" onClick={() => navigate("/metals")}>Gold-Silver</button>
-          <button className="metals-nav-link" onClick={() => navigate("/timeseries")}>Time Series</button>
-        </div>
-          <div className="metals-nav-right">
-            <div className="metals-admin-pill">Admin: {staffName}</div>
-            <button className="metals-logout-btn" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
+        <AppNavbar staffName={staffName} onLogout={handleLogout} />
 
         <div className="metals-card">
           <h1>Gold-Silver Linear Regression Correlation</h1>

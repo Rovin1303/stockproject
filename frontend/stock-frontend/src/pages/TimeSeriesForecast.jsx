@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Line } from "react-chartjs-2";
 import "chart.js/auto";
 import api from "../services/api";
+import AppNavbar from "../components/AppNavbar";
 import "./TimeSeriesForecast.css";
 
 function TimeSeriesForecast() {
@@ -220,18 +221,7 @@ function TimeSeriesForecast() {
   return (
     <div className="ts-page">
       <div className="ts-shell">
-        <div className="ts-navbar">
-          <div className="ts-nav-left">
-            <div className="ts-app-name">Check.Stock</div>
-            <button className="ts-nav-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
-            <button className="ts-nav-link" onClick={() => navigate("/metals")}>Gold-Silver</button>
-            <button className="ts-nav-link active" onClick={() => navigate("/timeseries")}>Time Series</button>
-          </div>
-          <div className="ts-nav-right">
-            <div className="ts-admin-pill">Admin: {staffName}</div>
-            <button className="ts-logout-btn" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
+        <AppNavbar staffName={staffName} onLogout={handleLogout} />
 
         <div className="ts-card">
           <h1>{selectedModelType.toUpperCase()} Time Series Forecast</h1>

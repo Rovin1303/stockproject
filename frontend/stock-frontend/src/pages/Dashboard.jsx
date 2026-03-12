@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import AppNavbar from "../components/AppNavbar";
 import "./Dashboard.css";
 
 function Dashboard() {
@@ -108,20 +109,7 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-navbar">
-        <div className="nav-left">
-          <div className="app-name">Check.Stock</div>
-          <button className="nav-link-btn" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <button className="nav-link-btn" onClick={() => navigate("/metals")}>Gold-Silver</button>
-          <button className="nav-link-btn" onClick={() => navigate("/timeseries")}>Time Series</button>
-        </div>
-        <div className="nav-right">
-          <div className="admin-pill">Admin: {staffName}</div>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
+      <AppNavbar staffName={staffName} onLogout={handleLogout} />
 
       <h1 className="dashboard-title">My Portfolios</h1>
   {errorMessage && <p className="dashboard-error">{errorMessage}</p>}

@@ -4,70 +4,14 @@
     radial-gradient(circle at 15% 0%, rgba(217, 119, 6, 0.16), transparent 35%),
     radial-gradient(circle at 85% 15%, rgba(71, 85, 105, 0.15), transparent 35%),
     #f8fafc;
-  padding: 24px 12px;
+  padding: 14px 16px 24px;
 }
 
 .metals-shell {
-  max-width: 1120px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   display: grid;
   gap: 14px;
-}
-
-.metals-navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.metals-nav-left,
-.metals-nav-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.metals-app-name {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.metals-nav-link {
-  border: none;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  color: #1f2937;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.metals-nav-link.active {
-  background: #111827;
-  color: #fff;
-}
-
-.metals-admin-pill {
-  padding: 8px 12px;
-  background: #fff;
-  border: 1px solid #dbe3ff;
-  border-radius: 999px;
-  color: #1f2937;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.metals-logout-btn {
-  border: none;
-  border-radius: 999px;
-  background: #ef4444;
-  color: #fff;
-  padding: 8px 12px;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 .metals-card,
@@ -99,14 +43,7 @@
 }
 
 @media (max-width: 760px) {
-  .metals-navbar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .metals-nav-left,
-  .metals-nav-right {
-    flex-wrap: wrap;
+  .metals-page {
+    padding: 12px 12px 20px;
   }
 }

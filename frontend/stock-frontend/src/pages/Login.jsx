@@ -27,39 +27,46 @@ function Login() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1>Stock Analytics Portal</h1>
-        <p className="subtitle">Admin Login</p>
+    <div className="auth-page">
+      <div className="auth-shell">
+        <div className="login-container">
+          <div className="login-card">
+            <div className="auth-brand">Check.Stock</div>
+            <h1>Welcome Back</h1>
+            <p className="subtitle">Sign in to manage portfolios and analytics.</p>
 
-        <form onSubmit={handleLogin}>
-          <input
-            type="email"
-            placeholder="Enter email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+            <form onSubmit={handleLogin} className="auth-form">
+              <input
+                type="email"
+                placeholder="Enter email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
 
-          <input
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+              <input
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
-
-        <p className="auth-switch">
-          New admin?{" "}
-          <button type="button" onClick={() => navigate("/signup")}>
-            Sign up
-          </button>
-        </p>
+              <div className="auth-actions">
+                <button className="auth-primary-btn" type="submit" disabled={loading}>
+                  {loading ? "Logging in..." : "Login"}
+                </button>
+                <button
+                  className="auth-secondary-btn"
+                  type="button"
+                  onClick={() => navigate("/signup")}
+                >
+                  Create account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

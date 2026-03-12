@@ -28,47 +28,54 @@ function Signup() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1>Create Admin Account</h1>
-        <p className="subtitle">Register and continue to portfolio dashboard</p>
+    <div className="auth-page">
+      <div className="auth-shell">
+        <div className="login-container">
+          <div className="login-card">
+            <div className="auth-brand">Check.Stock</div>
+            <h1>Create Admin Account</h1>
+            <p className="subtitle">Register and continue to portfolio dashboard.</p>
 
-        <form onSubmit={handleSignup}>
-          <input
-            type="text"
-            placeholder="Enter name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+            <form onSubmit={handleSignup} className="auth-form">
+              <input
+                type="text"
+                placeholder="Enter name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
 
-          <input
-            type="email"
-            placeholder="Enter email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+              <input
+                type="email"
+                placeholder="Enter email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
 
-          <input
-            type="password"
-            placeholder="Create password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+              <input
+                type="password"
+                placeholder="Create password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Creating..." : "Sign up"}
-          </button>
-        </form>
-
-        <p className="auth-switch">
-          Already registered?{" "}
-          <button type="button" onClick={() => navigate("/login")}>
-            Login
-          </button>
-        </p>
+              <div className="auth-actions">
+                <button className="auth-primary-btn" type="submit" disabled={loading}>
+                  {loading ? "Creating..." : "Sign up"}
+                </button>
+                <button
+                  className="auth-secondary-btn"
+                  type="button"
+                  onClick={() => navigate("/login")}
+                >
+                  Already have account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

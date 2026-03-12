@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Bar, Line } from "react-chartjs-2";
 import "chart.js/auto";
 import api from "../services/api";
+import AppNavbar from "../components/AppNavbar";
 import "./StockDetail.css";
 
 function StockDetail() {
@@ -96,20 +97,7 @@ function StockDetail() {
   return (
     <div className="stock-page">
       <div className="stock-shell">
-        <div className="stock-navbar">
-          <div className="stock-nav-left">
-            <div className="stock-app-name">Check.Stock</div>
-            <button className="stock-nav-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
-            <button className="stock-nav-link" onClick={() => navigate("/metals")}>Gold-Silver</button>
-            <button className="stock-nav-link" onClick={() => navigate("/timeseries")}>Time Series</button>
-          </div>
-          <div className="stock-nav-right">
-            <div className="stock-admin-pill">Admin: {staffName}</div>
-            <button className="stock-logout-btn" onClick={handleLogout}>
-              Logout
-            </button>
-          </div>
-        </div>
+        <AppNavbar staffName={staffName} onLogout={handleLogout} />
 
         <div className="stock-topbar">
           <button className="back-btn" onClick={() => navigate(-1)}>

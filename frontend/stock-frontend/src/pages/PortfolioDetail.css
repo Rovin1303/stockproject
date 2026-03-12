@@ -1,64 +1,12 @@
 .portfolio-container {
   min-height: 100vh;
-  padding: 30px;
+  padding: 14px 16px 24px;
   background: #f4f6fb;
-}
-
-.page-navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.nav-left,
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-name {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.nav-link {
-  border: none;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: #e8edff;
-  color: #3b5bdb;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.admin-pill {
-  padding: 8px 12px;
-  background: #ffffff;
-  border: 1px solid #dbe3ff;
-  border-radius: 999px;
-  color: #1f2937;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.logout-btn {
-  border: none;
-  border-radius: 999px;
-  background: #ef4444;
-  color: #fff;
-  padding: 8px 12px;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 .back-btn {
   border: none;
-  background: #111827;
+  background: #0f4c81;
   color: #fff;
   border-radius: 10px;
   padding: 8px 12px;
@@ -87,7 +35,7 @@
 }
 
 .chart-card {
-  max-width: 920px;
+  max-width: none;
 }
 
 .chart-card canvas {
@@ -210,9 +158,38 @@
   margin: 0;
 }
 
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stock-sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stock-sort-controls label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f4c81;
+}
+
+.stock-sort-controls select {
+  border: 1px solid #d1dbe8;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 13px;
+  color: #1f2937;
+  background: #ffffff;
+}
+
 .refresh-btn {
   border: none;
-  background: #111827;
+  background: #0f4c81;
   color: #fff;
   border-radius: 8px;
   padding: 8px 12px;
@@ -241,6 +218,29 @@
 
 .stocks-table th {
   background: #f9fafb;
+}
+
+.sort-header-btn {
+  border: none;
+  background: transparent;
+  color: #0f4c81;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-header-btn span {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 11px;
+  border: 1px solid #d3deec;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #ffffff;
 }
 
 .empty-row {
@@ -280,5 +280,10 @@
   .table-card-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .table-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 }

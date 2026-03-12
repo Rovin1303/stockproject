@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Bar, Scatter } from "react-chartjs-2";
 import "chart.js/auto";
 import api from "../services/api";
+import AppNavbar from "../components/AppNavbar";
 import "./PortfolioDetail.css";
+
+const RISK_ORDER = {
+  "Low Risk": 0,
+  "Medium Risk": 1,
+  "High Risk": 2,
+};
 
 function PortfolioDetail() {
   const { portfolioId } = useParams();
@@ -26,6 +33,21 @@ function PortfolioDetail() {
   const [clusterError, setClusterError] = useState("");
   const [activeGraph, setActiveGraph] = useState("");
   const [refreshingPrices, setRefreshingPrices] = useState(false);
+  const [stockSort, setStockSort] = useState({ key: "company", direction: "asc" });
+  const [clusterSort, setClusterSort] = useState({ key: "ticker", direction: "asc" });
+
+  const stockSortOptions = [
+    { key: "symbol", label: "Symbol" },
+    { key: "company", label: "Company" },
+    { key: "current_price", label: "Current Price" },
+    { key: "min_price", label: "Min Price" },
+    { key: "max_price", label: "Max Price" },
+    { key: "discount_pct", label: "Discount %" },
+    { key: "pe_ratio", label: "PE Ratio" },
+    { key: "price_predict", label: "Price Predict" },
+    { key: "up_down", label: "Up/Down" },
+    { key: "pred_change", label: "Pred Change %" },
+  ];
 
   const loadPortfolio = useCallback(async (options = {}) => {
     const {
@@ -246,10 +268,13 @@ function PortfolioDetail() {
     ],
   };
   const hasAnyPositivePe = stocks.some((stock) => Number(stock.pe_ratio) > 0);
-  const logisticMap = {};
-  logisticRows.forEach((row) => {
-    logisticMap[row.stock_id] = row;
-  });
+  const logisticMap = useMemo(() => {
+    const mapped = {};
+    logisticRows.forEach((row) => {
+      mapped[row.stock_id] = row;
+    });
+    return mapped;
+  }, [logisticRows]);
 
   const clusterChartData = {
     datasets: [
@@ -321,7 +346,7 @@ function PortfolioDetail() {
     if (risk === "Low Risk") return "risk-low";
     return "";
   };
-  const getDiscountPctForRow = (row) => {
+  const getDiscountPctForRow = useCallback((row) => {
     const apiValue = Number(row.discount_pct);
     if (Number.isFinite(apiValue)) return apiValue;
 
@@ -332,38 +357,128 @@ function PortfolioDetail() {
     const current = Number(linkedStock.current_price || 0);
     if (high <= 0) return null;
     return ((high - current) / high) * 100;
+  }, [stocks]);
+  const compareValues = (left, right, direction) => {
+    const order = direction === "asc" ? 1 : -1;
+    const leftMissing = left === null || left === undefined || left === "";
+    const rightMissing = right === null || right === undefined || right === "";
+
+    if (leftMissing && rightMissing) return 0;
+    if (leftMissing) return 1;
+    if (rightMissing) return -1;
+
+    if (typeof left === "string" || typeof right === "string") {
+      return String(left).localeCompare(String(right)) * order;
+    }
+
+    return (Number(left) - Number(right)) * order;
   };
-  const riskOrder = {
-    "Low Risk": 0,
-    "Medium Risk": 1,
-    "High Risk": 2,
+
+  const sortedStocks = useMemo(() => {
+    const getStockSortValue = (stock, key) => {
+      const currentPrice = Number(stock.current_price || 0);
+      const maxPrice = Number(stock.high_52w || 0);
+      const predictedPriceRaw = predictions[stock.id]?.price_predict;
+      const predictedPrice = predictedPriceRaw !== null && predictedPriceRaw !== undefined
+        ? Number(predictedPriceRaw)
+        : null;
+      const predChangePct = predictedPrice !== null && currentPrice > 0
+        ? ((predictedPrice - currentPrice) / currentPrice) * 100
+        : null;
+
+      switch (key) {
+        case "symbol":
+          return stock.ticker || "";
+        case "company":
+          return stock.company_name || "";
+        case "current_price":
+          return currentPrice;
+        case "min_price":
+          return stock.low_52w !== null && stock.low_52w !== undefined ? Number(stock.low_52w) : null;
+        case "max_price":
+          return stock.high_52w !== null && stock.high_52w !== undefined ? Number(stock.high_52w) : null;
+        case "discount_pct":
+          return maxPrice > 0 ? ((maxPrice - currentPrice) / maxPrice) * 100 : null;
+        case "pe_ratio": {
+          const pe = Number(stock.pe_ratio);
+          return Number.isFinite(pe) && pe > 0 ? pe : null;
+        }
+        case "price_predict":
+          return predictedPrice;
+        case "up_down": {
+          const label = logisticMap[stock.id]?.predicted_label;
+          if (label === "UP") return 1;
+          if (label === "DOWN") return 0;
+          return null;
+        }
+        case "pred_change":
+          return predChangePct;
+        default:
+          return stock.company_name || "";
+      }
+    };
+
+    return [...stocks].sort((left, right) => {
+      const leftValue = getStockSortValue(left, stockSort.key);
+      const rightValue = getStockSortValue(right, stockSort.key);
+      return compareValues(leftValue, rightValue, stockSort.direction);
+    });
+  }, [stocks, stockSort, predictions, logisticMap]);
+
+  const sortedClusterRows = useMemo(() => {
+    const getClusterSortValue = (row, key) => {
+      switch (key) {
+        case "ticker":
+          return row.ticker || "";
+        case "company":
+          return row.company_name || "";
+        case "vol_21":
+          return Number(row.vol_21 || 0);
+        case "max_drawdown_126":
+          return Number(row.max_drawdown_126 || 0);
+        case "discount_pct":
+          return getDiscountPctForRow(row);
+        case "risk_group":
+          return RISK_ORDER[row.cluster] ?? 99;
+        default:
+          return row.ticker || "";
+      }
+    };
+
+    return [...clusterRows].sort((left, right) => {
+      const leftValue = getClusterSortValue(left, clusterSort.key);
+      const rightValue = getClusterSortValue(right, clusterSort.key);
+      const primarySort = compareValues(leftValue, rightValue, clusterSort.direction);
+      if (primarySort !== 0) {
+        return primarySort;
+      }
+      return String(left.ticker || "").localeCompare(String(right.ticker || ""));
+    });
+  }, [clusterRows, clusterSort, getDiscountPctForRow]);
+
+  const toggleClusterSort = (key) => {
+    setClusterSort((prev) => {
+      if (prev.key === key) {
+        return {
+          key,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
   };
-  const sortedClusterRows = [...clusterRows].sort((a, b) => {
-    const rankA = riskOrder[a.cluster] ?? 99;
-    const rankB = riskOrder[b.cluster] ?? 99;
-    if (rankA !== rankB) return rankA - rankB;
-    return String(a.ticker || "").localeCompare(String(b.ticker || ""));
-  });
+
+  const sortLabel = (activeSort, key) => {
+    if (activeSort.key !== key) return "Sort";
+    return activeSort.direction === "asc" ? "Asc" : "Desc";
+  };
 
   if (portfolioLoading) return <div>Loading...</div>;
   if (!portfolio) return <div>{portfolioError || "Portfolio not found."}</div>;
 
   return (
     <div className="portfolio-container">
-      <div className="page-navbar">
-        <div className="nav-left">
-          <div className="app-name">Check.Stock</div>
-          <button className="nav-link" onClick={() => navigate("/dashboard")}>Dashboard</button>
-          <button className="nav-link" onClick={() => navigate("/metals")}>Gold-Silver</button>
-          <button className="nav-link" onClick={() => navigate("/timeseries")}>Time Series</button>
-        </div>
-        <div className="nav-right">
-          <div className="admin-pill">Admin: {staffName}</div>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
+      <AppNavbar staffName={staffName} onLogout={handleLogout} />
 
       <button className="back-btn" onClick={() => navigate("/dashboard")}>
         Back to Dashboard
@@ -457,12 +572,36 @@ function PortfolioDetail() {
             <table className="stocks-table">
               <thead>
                 <tr>
-                  <th>Symbol</th>
-                  <th>Company</th>
-                  <th>Vol21 %</th>
-                  <th>MaxDrawdown126 %</th>
-                  <th>Discount %</th>
-                  <th>Risk Group</th>
+                  <th>
+                    <button className="sort-header-btn" onClick={() => toggleClusterSort("ticker")}>
+                      Symbol <span>{sortLabel(clusterSort, "ticker")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button className="sort-header-btn" onClick={() => toggleClusterSort("company")}>
+                      Company <span>{sortLabel(clusterSort, "company")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button className="sort-header-btn" onClick={() => toggleClusterSort("vol_21")}>
+                      Vol21 % <span>{sortLabel(clusterSort, "vol_21")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button className="sort-header-btn" onClick={() => toggleClusterSort("max_drawdown_126")}>
+                      MaxDrawdown126 % <span>{sortLabel(clusterSort, "max_drawdown_126")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button className="sort-header-btn" onClick={() => toggleClusterSort("discount_pct")}>
+                      Discount % <span>{sortLabel(clusterSort, "discount_pct")}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button className="sort-header-btn" onClick={() => toggleClusterSort("risk_group")}>
+                      Risk Group <span>{sortLabel(clusterSort, "risk_group")}</span>
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -515,10 +654,32 @@ function PortfolioDetail() {
 
       <div className="table-card">
         <div className="table-card-header">
-          <h3>Portfolio Stocks (Unified)</h3>
-          <button className="refresh-btn" onClick={handleRefreshPrices} disabled={refreshingPrices}>
-            {refreshingPrices ? "Refreshing..." : "Refresh Prices"}
-          </button>
+          <h3>Portfolio Stocks</h3>
+          <div className="table-controls">
+            <div className="stock-sort-controls">
+              <label htmlFor="stock-sort-key">Sort by</label>
+              <select
+                id="stock-sort-key"
+                value={stockSort.key}
+                onChange={(e) => setStockSort((prev) => ({ ...prev, key: e.target.value }))}
+              >
+                {stockSortOptions.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label}</option>
+                ))}
+              </select>
+              <select
+                id="stock-sort-direction"
+                value={stockSort.direction}
+                onChange={(e) => setStockSort((prev) => ({ ...prev, direction: e.target.value }))}
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
+            <button className="refresh-btn" onClick={handleRefreshPrices} disabled={refreshingPrices}>
+              {refreshingPrices ? "Refreshing..." : "Refresh Prices"}
+            </button>
+          </div>
         </div>
         <div className="table-wrap">
           <table className="stocks-table">
@@ -543,7 +704,7 @@ function PortfolioDetail() {
                   <td colSpan="11" className="empty-row">No stocks added yet.</td>
                 </tr>
               )}
-              {stocks.map((stock) => (
+              {sortedStocks.map((stock) => (
                 <tr key={stock.id}>
                   <td>{stock.ticker}</td>
                   <td>{stock.company_name}</td>
