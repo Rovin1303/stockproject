@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const configuredBaseUrl = process.env.REACT_APP_API_BASE_URL;
-const defaultBaseUrl = `${window.location.protocol}//${window.location.hostname}:8000/api/`;
+const defaultBaseUrl = `${window.location.protocol}//${window.location.hostname}/api/`;
 
 const api = axios.create({
   baseURL: configuredBaseUrl || defaultBaseUrl,
